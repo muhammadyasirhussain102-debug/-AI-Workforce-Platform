@@ -1,20 +1,9 @@
-from fastapi import FastAPI
+﻿from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from employee_mgmt.routes import policies, leave, attendance, tickets, complaints, training
 
-from employee_mgmt.routes.leave import router as leave_router
-from employee_mgmt.routes.policies import router as policy_router
-from employee_mgmt.routes.complaints import router as complaint_router
-from employee_mgmt.routes.attendance import router as attendance_router
-from employee_mgmt.routes.tickets import router as ticket_router
-from employee_mgmt.routes.training import router as training_router
+app = FastAPI(title="Employee Management & Agentic RAG", version="1.0.0")
 
-app = FastAPI(
-    title="Employee Management & Agentic RAG",
-    description="Solo Module Core Feature 2 API",
-    version="1.0.0"
-)
-
-# Frontend browser se connect karne ke liye
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,14 +12,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Saare routes mount ho rahe hain
-app.include_router(leave_router, prefix="/api/v1")
-app.include_router(policy_router, prefix="/api/v1")
-app.include_router(complaint_router, prefix="/api/v1")
-app.include_router(attendance_router, prefix="/api/v1")
-app.include_router(ticket_router, prefix="/api/v1")
-app.include_router(training_router, prefix="/api/v1")
+# Har router ka prefix ensure karein taake 404 khatam ho
+app.include_router(policies.router)
+app.include_router(leave.router)
+app.include_router(attendance.router)
+app.include_router(tickets.router)
+app.include_router(complaints.router)
+app.include_router(training.router)
 
 @app.get("/")
-async def root():
-    return {"status": "running", "module": "employee_mgmt"}
+def root():
+    return {"status": "online", "system": "Policy Brain & Enterprise Workforce OS"}
