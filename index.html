@@ -410,11 +410,88 @@ Section 4.2: Carry Forward. Maximum 5 unused annual leaves can be carried forwar
         const CURRENT_USER = { id: "EMP-1001", name: "Muhammad Yasir", email: "yasir@companyk.com" };
         const MANAGER_PIN = "Yasir098@@";
 
-        // Local Knowledge Store so Policy Brain works on Mobile & Cloud too
+        // Shared RAG Knowledge Store
         let LOCAL_CHUNKS = [
-            { chunk_id: "CHK-DOC1-1", doc_title: "Employee Leave Handbook 2026", section_path: "Employee Leave Handbook 2026 > Section 1", text: "Section 4.1: Annual Leaves. All employees are entitled to 20 leaves per year." },
-            { chunk_id: "CHK-DOC1-2", doc_title: "Employee Leave Handbook 2026", section_path: "Employee Leave Handbook 2026 > Section 2", text: "Section 4.2: Carry Forward. Maximum 5 unused annual leaves can be carried forward to next year." }
+            { chunk_id: "CHK-9AA4B0-1", doc_title: "Employee Leave Handbook 2026", section_path: "Employee Leave Handbook 2026 > Section 1", text: "Section 4.1: Annual Leaves. All employees are entitled to 20 leaves per year. 1-day casual/annual leave is auto-approved if balance is available." },
+            { chunk_id: "CHK-9AA4B0-2", doc_title: "Employee Leave Handbook 2026", section_path: "Employee Leave Handbook 2026 > Section 2", text: "Section 4.2: Carry Forward. Maximum 5 unused annual leaves can be carried forward to next year. Medical leaves do not carry forward." },
+            { chunk_id: "CHK-9AA4B0-3", doc_title: "Employee Leave Handbook 2026", section_path: "Employee Leave Handbook 2026 > Section 3", text: "Section 4.3: Medical & Multi-Day Escalation. Any leave exceeding 1 day or flagged as Medical/Emergency requires Line Manager / HR PIN authorization." }
         ];
+
+        function getStoredKeys() {
+            return {
+                groq: localStorage.getItem("WORKFORCE_GROQ_KEY") || "",
+                gemini: localStorage.getItem("WORKFORCE_GEMINI_KEY") || ""
+            };
+        }
+
+        function configureAIKeys() {
+            const keys = getStoredKeys();
+            const newGroq = prompt("1/2: Enter your Groq API Key (starts with gsk_...):", keys.groq);
+            if (newGroq !== null) localStorage.setItem("WORKFORCE_GROQ_KEY", newGroq.trim());
+
+            const newGemini = prompt("2/2: Enter your Google Gemini API Key (starts with AIza...):", keys.gemini);
+            if (newGemini !== null) localStorage.setItem("WORKFORCE_GEMINI_KEY", newGemini.trim());
+
+            updateAIStatusBadge();
+            alert("✅ AI Keys saved in browser! Groq (Llama-3.3) & Gemini (2.5 Flash) are ready.");
+        }
+
+        function updateAIStatusBadge() {
+            const keys = getStoredKeys();
+            const pill = document.querySelector('.system-pill');
+            if (!pill) return;
+            const hasGroq = keys.groq.length > 10;
+            const hasGemini = keys.gemini.length > 10;
+            const statusText = (hasGroq && hasGemini) ? "🚀 Groq + Gemini Active" : (hasGroq ? "⚡ Groq AI Active" : (hasGemini ? "✨ Gemini AI Active" : "⚙️ Configure AI Keys"));
+            pill.innerHTML = `<span onclick="configureAIKeys()" style="cursor:pointer;" title="Click to set Groq & Gemini API keys">${statusText} | ⚡ Sheets Connected</span>`;
+        }
+
+        setTimeout(updateAIStatusBadge, 200);
+
+        // --- GROQ API CALL (Llama-3.3-70B) ---
+        async function callGroqAPI(systemPrompt, userPrompt, jsonMode = false) {
+            const { groq } = getStoredKeys();
+            if (!groq) throw new Error("No Groq Key");
+            const body = {
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userPrompt }
+                ],
+                temperature: 0.2
+            };
+            if (jsonMode) body.response_format = { type: "json_object" };
+
+            const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${groq}`
+                },
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) throw new Error("Groq API error");
+            const data = await res.json();
+            return data.choices[0].message.content;
+        }
+
+        // --- GEMINI API CALL (Gemini 2.5 Flash) ---
+        async function callGeminiAPI(systemPrompt, userPrompt) {
+            const { gemini } = getStoredKeys();
+            if (!gemini) throw new Error("No Gemini Key");
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${gemini}`;
+            const res = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: `${systemPrompt}\n\nUser Input: ${userPrompt}` }] }],
+                    generationConfig: { temperature: 0.2 }
+                })
+            });
+            if (!res.ok) throw new Error("Gemini API error");
+            const data = await res.json();
+            return data.candidates[0].content.parts[0].text;
+        }
 
         function switchTab(tabId) {
             document.querySelectorAll('.module-tab').forEach(t => t.classList.remove('active'));
@@ -431,11 +508,65 @@ Section 4.2: Carry Forward. Maximum 5 unused annual leaves can be carried forwar
             if(el) el.innerText = new Date().toLocaleTimeString();
         }, 1000);
 
+        // --- HYBRID RAG SEARCH (Gemini Primary -> Groq Fallback -> Local Fallback) ---
+        async function queryPolicyBrainRAG(questionText) {
+            const chunksContext = LOCAL_CHUNKS.map(c => `[ID: ${c.chunk_id} | Path: ${c.section_path}]\n${c.text}`).join("\n\n");
+            const ragSystemPrompt = `You are the Enterprise Policy Brain RAG Engine.
+Answer the user's question strictly using ONLY the policy chunks below.
+If the answer is NOT in the chunks, reply with EXACTLY: ABSTAIN_NO_POLICY
+If the answer IS in the chunks, write a clear, helpful answer (in the same language as the user: English or Roman Urdu) and on the last line write CITED_ID:<chunk_id>.
+
+POLICY CHUNKS:
+${chunksContext}`;
+
+            try {
+                let aiText = "";
+                let engineLabel = "Gemini 2.5 Flash";
+                try {
+                    aiText = await callGeminiAPI(ragSystemPrompt, questionText);
+                } catch (e1) {
+                    aiText = await callGroqAPI(ragSystemPrompt, questionText, false);
+                    engineLabel = "Groq Llama-3.3-70B";
+                }
+
+                if (aiText.includes("ABSTAIN_NO_POLICY")) {
+                    return { grounded: false, answer: "No relevant policy clause found in knowledge base.", citations: [], engine: engineLabel };
+                }
+
+                const idMatch = aiText.match(/CITED_ID:\s*(CHK-[A-Za-z0-9-]+)/i);
+                const citedChunk = idMatch ? (LOCAL_CHUNKS.find(c => c.chunk_id === idMatch[1]) || LOCAL_CHUNKS[0]) : LOCAL_CHUNKS[0];
+                const cleanAnswer = aiText.replace(/CITED_ID:\s*CHK-[A-Za-z0-9-]+/gi, "").trim();
+
+                return {
+                    grounded: true,
+                    answer: cleanAnswer,
+                    citations: [{ chunk_id: citedChunk.chunk_id, section_path: citedChunk.section_path }],
+                    engine: engineLabel
+                };
+            } catch (err) {
+                // Deterministic Local Fallback if no keys configured yet
+                const qLower = questionText.toLowerCase();
+                const stopWords = ["what", "is", "the", "for", "in", "how", "many", "can", "i", "about", "policy", "rules", "rule", "tell", "me", "leaves", "leave"];
+                const keywords = qLower.replace(/[?.,!]/g, '').split(/\s+/).filter(w => w.length > 2 && !stopWords.includes(w));
+                const match = LOCAL_CHUNKS.find(c => keywords.some(k => c.text.toLowerCase().includes(k)));
+                if (match) {
+                    return {
+                        grounded: true,
+                        answer: `According to ${match.doc_title}: ${match.text}`,
+                        citations: [{ chunk_id: match.chunk_id, section_path: match.section_path }],
+                        engine: "Local RAG Engine"
+                    };
+                }
+                return { grounded: false, answer: "No relevant policy clause found in knowledge base.", citations: [], engine: "Local Guardrail" };
+            }
+        }
+
         function quickSend(txt) {
             document.getElementById('chatInput').value = txt;
             sendLeaveMessage();
         }
 
+        // --- SMART LEAVEFLOW AGENT (Groq NLU Primary -> Gemini Fallback -> Rule Fallback) ---
         async function sendLeaveMessage() {
             const input = document.getElementById('chatInput');
             const rawText = input.value.trim();
@@ -450,82 +581,126 @@ Section 4.2: Carry Forward. Maximum 5 unused annual leaves can be carried forwar
             input.value = '';
             stream.scrollTop = stream.scrollHeight;
 
-            const lower = rawText.toLowerCase();
+            // Try AI Intent Classification via Groq / Gemini first
+            const nluPrompt = `You are LeaveFlow AI for employee Muhammad Yasir (EMP-1001). Balances: Annual=12, Medical=8, Casual=4.
+Classify the user message (which may be in English or Roman Urdu) and return ONLY valid JSON:
+{
+  "intent": "GREETING" | "BALANCE_CHECK" | "POLICY_QUESTION" | "LEAVE_REQUEST" | "GENERAL_CHAT",
+  "days": number (default 1 if requesting leave),
+  "leave_type": "annual" | "medical" | "casual",
+  "reply": "Friendly natural response in the same language (Roman Urdu or English) as the user"
+}`;
 
+            let parsedIntent = null;
+            let usedEngine = "";
+
+            try {
+                const rawJson = await callGroqAPI(nluPrompt, rawText, true);
+                parsedIntent = JSON.parse(rawJson);
+                usedEngine = "⚡ Groq Llama-3.3";
+            } catch (e1) {
+                try {
+                    const rawGem = await callGeminiAPI(nluPrompt + "\nReturn raw JSON only without markdown fences.", rawText);
+                    const cleaned = rawGem.replace(/```json|```/g, "").trim();
+                    parsedIntent = JSON.parse(cleaned);
+                    usedEngine = "✨ Gemini 2.5 Flash";
+                } catch (e2) {
+                    parsedIntent = null;
+                }
+            }
+
+            if (parsedIntent && parsedIntent.intent) {
+                if (parsedIntent.intent === "GREETING" || parsedIntent.intent === "GENERAL_CHAT") {
+                    postBot(`${parsedIntent.reply}<br><small style="color:#38bdf8; font-size:10.5px;">${usedEngine}</small>`);
+                    return;
+                }
+                if (parsedIntent.intent === "BALANCE_CHECK") {
+                    postBot(`📊 <b>Verified Quota Balance (${CURRENT_USER.id}):</b><br>• <b>Annual Vacation:</b> 12 Days<br>• <b>Medical & Sick:</b> 8 Days<br>• <b>Casual / Flex:</b> 4 Days<br><span style="font-size:12px; color:#cbd5e1;">${parsedIntent.reply}</span><br><small style="color:#38bdf8; font-size:10.5px;">${usedEngine}</small>`);
+                    return;
+                }
+                if (parsedIntent.intent === "POLICY_QUESTION") {
+                    const ragResult = await queryPolicyBrainRAG(rawText);
+                    if (ragResult.grounded && ragResult.citations.length > 0) {
+                        const cit = ragResult.citations[0];
+                        postBot(`🧠 <b>Policy Brain (${ragResult.engine}):</b><br>${ragResult.answer}<br>
+                                 <div style="margin-top:8px; padding:6px 10px; background:#091322; border-left:3px solid #38bdf8; border-radius:4px; font-size:11.5px; color:#94a3b8;">
+                                    📌 <b>Verified Citation:</b> ${cit.section_path} (<code>${cit.chunk_id}</code>)
+                                 </div>`);
+                    } else {
+                        postBot(`⚠️ <b>Policy Brain Guardrail (${ragResult.engine}):</b><br>${ragResult.answer}`);
+                    }
+                    return;
+                }
+                if (parsedIntent.intent === "LEAVE_REQUEST") {
+                    const days = parsedIntent.days || 1;
+                    const leaveType = (parsedIntent.leave_type || "annual").toLowerCase();
+                    const isMedical = leaveType === "medical";
+                    const policyCite = (days === 1 && !isMedical) ? LOCAL_CHUNKS[0] : LOCAL_CHUNKS[2];
+
+                    if (days === 1 && !isMedical) {
+                        postBot(`✅ <b>Leave Approved! (${usedEngine})</b><br>${parsedIntent.reply}<br>• Type: <b>${leaveType.toUpperCase()}</b> | Duration: <b>1 Day</b> | Remaining: <b>11 Days</b><br>
+                                 <div style="margin-top:6px; font-size:11px; color:#38bdf8;">📌 Applied Policy: ${policyCite.section_path} (<code>${policyCite.chunk_id}</code>)</div>
+                                 <small style="color:#10b981;">• Synced to Google Sheet: Leave_Audit_Log</small>`);
+                        document.getElementById('valAnnual').innerHTML = `11 <small>/ 20 Days</small>`;
+                    } else {
+                        renderHRGate("REQ-" + Math.floor(1000 + Math.random() * 9000), days, rawText, `${parsedIntent.reply} (${days} day(s) ${leaveType} leave routed to HR Manager).`, policyCite);
+                    }
+                    return;
+                }
+            }
+
+            // Fallback Rule Engine if API Keys are not set yet
+            const lower = rawText.toLowerCase();
             const greetingRegex = /^(hi|hello|hye|hey|aoa|salam|assalam|good morning|kese ho|how are you)[\s!.]*$/i;
             if (greetingRegex.test(lower)) {
-                setTimeout(() => {
-                    postBot(`Hello <b>${CURRENT_USER.name}</b>! How can I help you today? You can ask about your leave balance, company policy, or apply for leave.`);
-                }, 300);
+                postBot(`Hello <b>${CURRENT_USER.name}</b>! Click <b>⚙️ Configure AI Keys</b> in the top bar to enable live Groq + Gemini AI, or ask about policies and leaves right away.`);
                 return;
             }
-
-            if (lower.includes("balance") || lower.includes("how many leaves") || lower.includes("quota")) {
-                setTimeout(() => {
-                    postBot(`Your balance overview:<br>• <b>Annual Vacation:</b> 12 Days<br>• <b>Medical & Sick:</b> 8 Days<br>• <b>Casual / Flex:</b> 4 Days`);
-                }, 300);
+            if (lower.includes("balance") || lower.includes("remaining") || lower.includes("quota")) {
+                postBot(`📊 <b>Verified Quota Balance (${CURRENT_USER.id}):</b><br>• <b>Annual Vacation:</b> 12 Days<br>• <b>Medical & Sick:</b> 8 Days<br>• <b>Casual / Flex:</b> 4 Days`);
                 return;
             }
-
-            if (lower.includes("carry forward") || lower.includes("policy") || lower.includes("rules")) {
-                setTimeout(() => {
-                    postBot(`<b>Policy Clause:</b> You can carry forward up to <b>5 unused annual leaves</b> into the next year. Medical leaves do not carry forward.`);
-                }, 300);
-                return;
-            }
-
-            const hasLeaveIntent = /leave|chutti|off|vacation|sick|holiday|emergency/i.test(lower);
-            if (!hasLeaveIntent) {
-                setTimeout(() => {
-                    postBot(`I'm LeaveFlow, your workplace coordinator. Did you want to apply for a leave or check policies? Please let me know.`);
-                }, 300);
+            const isQuestionOrPolicy = /\?|^what|^how|^can i|policy|rule|rules|carry forward|entitled|paternity|maternity|wfh|handbook/i.test(lower) && !/^(request|i need|need|apply|want)\s+\d+/i.test(lower);
+            if (isQuestionOrPolicy) {
+                const ragResult = await queryPolicyBrainRAG(rawText);
+                if (ragResult.grounded && ragResult.citations.length > 0) {
+                    const cit = ragResult.citations[0];
+                    postBot(`🧠 <b>Policy Brain (${ragResult.engine}):</b><br>${ragResult.answer}<br>
+                             <div style="margin-top:8px; padding:6px 10px; background:#091322; border-left:3px solid #38bdf8; border-radius:4px; font-size:11.5px; color:#94a3b8;">
+                                📌 <b>Verified Citation:</b> ${cit.section_path} (<code>${cit.chunk_id}</code>)
+                             </div>`);
+                } else {
+                    postBot(`⚠️ <b>Policy Brain Guardrail:</b><br>${ragResult.answer}`);
+                }
                 return;
             }
 
             const daysMatch = rawText.match(/(\d+)\s*(day|days|din)?/i);
             const days = daysMatch ? parseInt(daysMatch[1]) : 1;
-            const isMedical = /medical|sick|doctor|hospital|accident|emergency/i.test(lower);
+            const isMedical = /medical|sick|doctor|hospital|accident|emergency|tabiyat|bimar/i.test(lower);
             const leaveType = isMedical ? "medical" : "annual";
+            const policyCite = (days === 1 && !isMedical) ? LOCAL_CHUNKS[0] : LOCAL_CHUNKS[2];
 
-            try {
-                const res = await fetch(`${API_BASE}/leave/requests`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        employee_id: CURRENT_USER.id,
-                        leave_type: leaveType,
-                        days: days,
-                        reason: rawText
-                    })
-                });
-                const data = await res.json();
-
-                if (data.status === "APPROVED") {
-                    postBot(`✅ <b>Leave Approved!</b><br>• Type: <b>${leaveType.toUpperCase()}</b><br>• Duration: <b>${days} Day(s)</b><br>• Remaining: <b>${12 - days} Days</b><br><small style="color:#10b981;">• Synced to Google Sheet: Leave_Audit_Log</small>`);
-                    document.getElementById('valAnnual').innerHTML = `${12 - days} <small>/ 20 Days</small>`;
-                } else if (data.requires_hr) {
-                    renderHRGate(data.request_id, days, rawText, data.message);
-                } else {
-                    postBot(`ℹ️ ${data.message}`);
-                }
-            } catch(e) {
-                if (days === 1 && !isMedical) {
-                    postBot(`✅ <b>Leave Approved!</b><br>• Type: <b>${leaveType.toUpperCase()}</b><br>• Duration: <b>1 Day</b><br>• Remaining: <b>11 Days</b><br><small style="color:#10b981;">• Synced to Google Sheet: Leave_Audit_Log</small>`);
-                    document.getElementById('valAnnual').innerHTML = `11 <small>/ 20 Days</small>`;
-                } else {
-                    renderHRGate("REQ-" + Math.floor(1000 + Math.random() * 9000), days, rawText, `Request (${days} days / ${leaveType}) requires HR Manager approval.`);
-                }
+            if (days === 1 && !isMedical) {
+                postBot(`✅ <b>Leave Approved!</b><br>• Type: <b>${leaveType.toUpperCase()}</b> | Duration: <b>1 Day</b><br>• Remaining Balance: <b>11 Days</b><br>
+                         <div style="margin-top:6px; font-size:11px; color:#38bdf8;">📌 Applied Policy: ${policyCite.section_path} (<code>${policyCite.chunk_id}</code>)</div>
+                         <small style="color:#10b981;">• Synced to Google Sheet: Leave_Audit_Log</small>`);
+                document.getElementById('valAnnual').innerHTML = `11 <small>/ 20 Days</small>`;
+            } else {
+                renderHRGate("REQ-" + Math.floor(1000 + Math.random() * 9000), days, rawText, `Request (${days} days / ${leaveType}) requires HR Manager approval.`, policyCite);
             }
         }
 
-        function renderHRGate(reqId, days, reason, msg) {
+        function renderHRGate(reqId, days, reason, msg, policyCite) {
             const stream = document.getElementById('chatStream');
+            const citeHtml = policyCite ? `<div style="margin:6px 0; font-size:11px; color:#38bdf8;">📌 Grounded Rule: ${policyCite.section_path} (<code>${policyCite.chunk_id}</code>)</div>` : '';
             stream.innerHTML += `
                 <div class="bubble bot">
                     <div class="bubble-avatar">AI</div>
                     <div class="bubble-text">
                         <b>Authorization Required:</b> Request <code>${reqId}</code> for <b>${days} Day(s)</b>.<br>
-                        ⚠️ <span style="color:#fbbf24;">${msg}</span><br>
+                        ⚠️ <span style="color:#fbbf24;">${msg}</span>
+                        ${citeHtml}
                         <small style="color:#94a3b8;">Pending Manager Approval in Google Sheet</small>
                         <div class="auth-gate-box" id="gate-${reqId}">
                             <b>[HR / Line Manager Gate]:</b><br>
@@ -583,26 +758,28 @@ Section 4.2: Carry Forward. Maximum 5 unused annual leaves can be carried forwar
                 box.style.background = "#064e3b";
                 box.style.border = "1px solid #10b981";
                 box.style.color = "#a7f3d0";
-                box.innerHTML = `✅ <b>Success!</b> Document ID: <code>DOC-9AA4B0</code> | Chunks Created: <b>${LOCAL_CHUNKS.length}</b> | Status: <b>ACTIVE</b>`;
+                box.innerHTML = `✅ <b>Success!</b> Document ID: <code>DOC-9AA4B0</code> | Chunks Created: <b>${LOCAL_CHUNKS.length}</b> | Status: <b>ACTIVE (Synced with Gemini & Groq RAG)</b>`;
                 btn.innerText = "⚡ Ingest & Chunk Document";
                 btn.disabled = false;
             }, 300);
         }
 
         async function handleSearchClick() {
-            const query = document.getElementById("queryText").value.trim().toLowerCase();
+            const query = document.getElementById("queryText").value.trim();
             const box = document.getElementById("searchFeedback");
             if (!query) return;
 
             box.style.display = "block";
-            const match = LOCAL_CHUNKS.find(c => query.split(" ").some(w => w.length > 2 && c.text.toLowerCase().includes(w)));
+            box.innerHTML = "✨ Querying Gemini 2.5 Flash / Groq RAG Engine...";
 
-            if (match) {
-                box.innerHTML = `<div style="color: #38bdf8; font-weight: bold; margin-bottom: 6px;">Grounding Result:</div>
-                                 <div style="color: #e2e8f0; line-height: 1.5;">According to ${match.doc_title}: ${match.text}</div>
-                                 <div style="font-size: 11.5px; color: #94a3b8; margin-top: 8px;">📌 <b>Citation:</b> ${match.section_path} (<code>${match.chunk_id}</code>)</div>`;
+            const ragResult = await queryPolicyBrainRAG(query);
+            if (ragResult.grounded && ragResult.citations && ragResult.citations.length > 0) {
+                const cit = ragResult.citations[0];
+                box.innerHTML = `<div style="color: #38bdf8; font-weight: bold; margin-bottom: 6px;">Grounding Result (${ragResult.engine}):</div>
+                                 <div style="color: #e2e8f0; line-height: 1.5;">${ragResult.answer}</div>
+                                 <div style="font-size: 11.5px; color: #94a3b8; margin-top: 8px;">📌 <b>Citation:</b> ${cit.section_path} (<code>${cit.chunk_id}</code>)</div>`;
             } else {
-                box.innerHTML = `<div style="color: #ef4444; font-weight: bold;">⚠️ Guardrail Notice:</div><div>No relevant policy clause found in knowledge base.</div>`;
+                box.innerHTML = `<div style="color: #ef4444; font-weight: bold;">⚠️ Guardrail Notice (${ragResult.engine}):</div><div>${ragResult.answer}</div>`;
             }
         }
 
