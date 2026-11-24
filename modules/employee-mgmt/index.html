@@ -1,507 +1,335 @@
-﻿<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enterprise Workforce OS | Face ID Biometric Portal</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Employee Management — AI Workforce Platform</title>
+    <link rel="stylesheet" href="./src/styles/tokens.css" />
     <style>
-        :root {
-            --bg-base: #040914;
-            --bg-surface: #091322;
-            --bg-card: #0f1d32;
-            --border-subtle: #1a304f;
-            --border-glow: #0284c7;
-            --accent-blue: #38bdf8;
-            --accent-green: #10b981;
-            --accent-amber: #f59e0b;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
+      .app-shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        background-color: var(--bg-canvas);
+        color: var(--text-primary);
+      }
+
+      .sidebar {
+        background-color: var(--bg-surface);
+        border-right: 1px solid var(--border-subtle);
+        padding: 20px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .brand {
+        padding: 6px 10px 14px;
+        border-bottom: 1px solid var(--border-subtle);
+      }
+
+      .brand-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        letter-spacing: 0.02em;
+      }
+
+      .brand-subtitle {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-top: 4px;
+      }
+
+      .nav-list {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .nav-btn {
+        width: 100%;
+        text-align: left;
+        background: transparent;
+        color: var(--text-secondary);
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm);
+        padding: 10px 12px;
+        font-size: 0.88rem;
+        cursor: pointer;
+        transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+      }
+
+      .nav-btn:hover {
+        background-color: var(--bg-elevated);
+        color: var(--text-primary);
+      }
+
+      .nav-btn.active {
+        background-color: var(--bg-elevated);
+        color: var(--text-primary);
+        border-color: var(--accent-primary);
+      }
+
+      .main-content {
+        padding: 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid var(--border-subtle);
+      }
+
+      .page-heading {
+        font-size: 1.35rem;
+        font-weight: 600;
+      }
+
+      .status-pill {
+        font-size: 0.78rem;
+        padding: 5px 10px;
+        border-radius: var(--radius-sm);
+        background-color: var(--bg-elevated);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-secondary);
+      }
+
+      .card {
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        padding: 20px;
+        max-width: 720px;
+      }
+
+      .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+
+      .card-desc {
+        font-size: 0.88rem;
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+        line-height: 1.5;
+      }
+
+      .form-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .input-field {
+        background-color: var(--bg-canvas);
+        color: var(--text-primary);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        padding: 10px 12px;
+        font-size: 0.9rem;
+        min-width: 220px;
+      }
+
+      .input-field:focus {
+        outline: none;
+        border-color: var(--accent-primary);
+      }
+
+      .btn-primary {
+        background-color: var(--accent-primary);
+        color: #ffffff;
+        border: none;
+        border-radius: var(--radius-sm);
+        padding: 10px 16px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+      }
+
+      .btn-primary:hover {
+        background-color: var(--accent-hover);
+      }
+
+      .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .result-box {
+        margin-top: 14px;
+        padding: 12px 14px;
+        border-radius: var(--radius-sm);
+        background-color: var(--bg-canvas);
+        border: 1px solid var(--border-subtle);
+        font-size: 0.85rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      @media (max-width: 768px) {
+        .app-shell {
+          grid-template-columns: 1fr;
         }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background: var(--bg-base); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
-
-        /* Sidebar */
-        .sidebar { width: 280px; background: var(--bg-surface); border-right: 1px solid var(--border-subtle); padding: 24px 18px; display: flex; flex-direction: column; justify-content: space-between; flex-shrink: 0; }
-        .brand-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
-        .brand-logo { width: 38px; height: 38px; background: linear-gradient(135deg, #0284c7, #38bdf8); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 20px; color: white; box-shadow: 0 0 15px rgba(2, 132, 199, 0.4); }
-        .brand-header h1 { font-size: 16px; font-weight: 800; line-height: 1.2; }
-        .brand-header span { font-size: 11px; color: var(--accent-blue); font-weight: 600; text-transform: uppercase; }
-
-        .nav-list { display: flex; flex-direction: column; gap: 8px; }
-        .nav-btn { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-radius: 10px; background: transparent; color: var(--text-muted); border: 1px solid transparent; font-size: 13.5px; font-weight: 600; cursor: pointer; text-align: left; width: 100%; transition: all 0.2s; }
-        .nav-btn:hover { background: #132238; color: white; border-color: var(--border-subtle); }
-        .nav-btn.active { background: #0b2244; color: var(--accent-blue); border-color: var(--border-glow); box-shadow: 0 4px 16px rgba(2, 132, 199, 0.2); }
-
-        /* Workspace */
-        .main-workspace { flex: 1; display: flex; flex-direction: column; background: #060e1b; overflow: hidden; }
-        .top-navbar { height: 68px; background: var(--bg-surface); border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; padding: 0 28px; flex-shrink: 0; }
-        .user-profile-badge { display: flex; align-items: center; gap: 12px; }
-        .avatar-circle { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #0284c7); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; border: 2px solid #38bdf8; }
-        .user-details h4 { font-size: 14px; font-weight: 700; }
-        .user-details p { font-size: 11.5px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
-        .active-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-green); display: inline-block; box-shadow: 0 0 8px #10b981; }
-        .system-pill { font-size: 12px; background: #0c1a2e; border: 1px solid var(--border-subtle); padding: 6px 14px; border-radius: 20px; color: var(--accent-blue); font-weight: 600; }
-
-        .viewport { flex: 1; overflow-y: auto; padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
-        .module-tab { display: none; }
-        .module-tab.active { display: flex; flex-direction: column; gap: 20px; }
-
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-        .dash-card { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 20px; }
-        .dash-card h3 { font-size: 15px; font-weight: 700; color: #f8fafc; margin-bottom: 8px; }
-        .dash-card p { font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 16px; }
-
-        /* Quotas */
-        .quota-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-        .quota-card { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 18px 20px; position: relative; overflow: hidden; }
-        .quota-card::after { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent-blue); }
-        .quota-card.medical::after { background: var(--accent-green); }
-        .quota-card.casual::after { background: var(--accent-amber); }
-        .quota-card.used::after { background: #818cf8; }
-        .quota-title { font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 8px; }
-        .quota-value { font-size: 26px; font-weight: 800; color: white; display: flex; align-items: baseline; gap: 6px; }
-        .quota-value small { font-size: 13px; color: var(--text-muted); font-weight: 500; }
-        .quota-bar { width: 100%; height: 6px; background: #060e1b; border-radius: 4px; margin-top: 12px; overflow: hidden; }
-        .quota-bar-fill { height: 100%; border-radius: 4px; }
-
-        /* Split Workspace */
-        .split-workspace { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 20px; flex: 1; }
-        .chat-panel { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 14px; display: flex; flex-direction: column; overflow: hidden; }
-        .chat-panel-header { padding: 16px 20px; background: #091322; border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; }
-        .chips-container { display: flex; gap: 8px; padding: 10px 18px; background: #060e1b; border-bottom: 1px solid var(--border-subtle); overflow-x: auto; }
-        .quick-chip { background: #132238; border: 1px solid var(--border-subtle); color: #cbd5e1; padding: 6px 13px; border-radius: 16px; font-size: 11.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
-        .quick-chip:hover { background: #0284c7; color: white; }
-
-        .chat-stream { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; min-height: 280px; max-height: 380px; }
-        .bubble { display: flex; gap: 12px; max-width: 88%; font-size: 13.5px; line-height: 1.5; }
-        .bubble.bot { align-self: flex-start; }
-        .bubble.user { align-self: flex-end; flex-direction: row-reverse; }
-        .bubble-avatar { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; }
-        .bubble.bot .bubble-avatar { background: #0284c7; color: white; }
-        .bubble.user .bubble-avatar { background: #334155; color: white; }
-        .bubble-text { padding: 12px 16px; border-radius: 12px; }
-        .bubble.bot .bubble-text { background: #0d1b30; border: 1px solid var(--border-subtle); color: #e2e8f0; }
-        .bubble.user .bubble-text { background: #0369a1; color: white; }
-
-        .chat-input-row { padding: 14px 18px; background: #091322; border-top: 1px solid var(--border-subtle); display: flex; gap: 10px; }
-        .chat-input-row input { flex: 1; background: #132238; border: 1px solid var(--border-subtle); color: white; padding: 10px 14px; border-radius: 8px; font-size: 13px; outline: none; }
-        .chat-send-btn { background: #0284c7; border: none; color: white; padding: 0 18px; border-radius: 8px; font-weight: 700; cursor: pointer; }
-
-        /* Face ID Biometric Camera Studio Styles */
-        .face-studio { display: flex; flex-direction: column; align-items: center; gap: 14px; background: #060e1b; border: 1px solid var(--border-subtle); border-radius: 10px; padding: 16px; }
-        .webcam-viewport { width: 100%; max-width: 340px; height: 220px; background: #000; border-radius: 8px; border: 2px solid var(--border-glow); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-        .webcam-viewport video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-        .face-overlay-box { position: absolute; width: 130px; height: 160px; border: 2px dashed #38bdf8; border-radius: 50% / 40%; box-shadow: 0 0 20px rgba(56, 189, 248, 0.4) inset; animation: pulseScan 2s infinite ease-in-out; pointer-events: none; }
-        @keyframes pulseScan { 0% { border-color: #38bdf8; transform: scale(1); } 50% { border-color: #10b981; transform: scale(1.03); } 100% { border-color: #38bdf8; transform: scale(1); } }
-        .scanner-hud { position: absolute; bottom: 8px; font-size: 10.5px; background: rgba(4, 9, 20, 0.85); color: #38bdf8; padding: 3px 10px; border-radius: 4px; font-family: monospace; letter-spacing: 1px; }
-
-        /* General Inputs & Buttons */
-        .btn-primary { background: #0284c7; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-        .btn-primary:hover { background: #0369a1; }
-        .btn-secondary { background: #1e293b; color: #cbd5e1; border: 1px solid #334155; padding: 8px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
-        .input-text { width: 100%; background: #1e293b; border: 1px solid #334155; color: white; padding: 9px 12px; border-radius: 6px; font-size: 13px; outline: none; margin-bottom: 10px; }
-        .dash-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
-        .dash-table th { text-align: left; padding: 10px 14px; background: #1e293b; color: #94a3b8; font-weight: 600; }
-        .dash-table td { padding: 12px 14px; border-bottom: 1px solid #1e293b; color: #cbd5e1; }
-        .badge { padding: 3px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 700; }
-        .badge-green { background: #064e3b; color: #34d399; }
-        .badge-blue { background: #082f49; color: #38bdf8; }
-        .badge-amber { background: #451a03; color: #fbbf24; }
-        .auth-gate-box { background: #060e1b; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin-top: 10px; }
-        .auth-gate-box input { background: #132238; border: 1px solid #334155; color: white; padding: 6px 10px; border-radius: 6px; font-size: 12px; outline: none; margin: 6px 0; }
-        .btn-gate { border: none; padding: 6px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; }
-        .btn-gate.yes { background: #10b981; color: white; }
-        .btn-gate.no { background: #ef4444; color: white; margin-left: 6px; }
+        .sidebar {
+          border-right: none;
+          border-bottom: 1px solid var(--border-subtle);
+        }
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
+    <div id="root" class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-title">Workforce OS</div>
+          <div class="brand-subtitle">Employee Management</div>
+        </div>
+        <nav aria-label="Module Navigation">
+          <ul id="nav-list" class="nav-list"></ul>
+        </nav>
+      </aside>
 
-    <!-- Sidebar -->
-    <div class="sidebar">
-        <div>
-            <div class="brand-header">
-                <div class="brand-logo">W</div>
-                <div>
-                    <h1>Workforce OS</h1>
-                    <span>Enterprise Portal</span>
-                </div>
-            </div>
-            <div class="nav-list">
-                <button class="nav-btn active" onclick="switchTab('leave')">🌴 Time-Off & LeaveFlow</button>
-                <button class="nav-btn" onclick="switchTab('policy')">🧠 Policy Brain (RAG)</button>
-                <button class="nav-btn" onclick="switchTab('attendance')">⏱️ Face ID Biometric</button>
-                <button class="nav-btn" onclick="switchTab('helpdesk')">💻 IT Support Hub</button>
-                <button class="nav-btn" onclick="switchTab('anonymous')">🔒 Whistleblower Box</button>
-            </div>
-        </div>
-        <div style="font-size: 11px; color: #64748b; line-height: 1.6;">
-            Tenant: <b>Corp Worldwide</b><br>
-            Security: <b>Enterprise Grade</b>
-        </div>
+      <main class="main-content">
+        <header class="header-bar">
+          <h1 id="page-heading" class="page-heading">Overview</h1>
+          <span id="api-status" class="status-pill">Ready</span>
+        </header>
+
+        <section id="view-container" class="card"></section>
+      </main>
     </div>
 
-    <!-- Main Workspace -->
-    <div class="main-workspace">
-        <div class="top-navbar">
-            <div class="user-profile-badge">
-                <div class="avatar-circle">MY</div>
-                <div class="user-details">
-                    <h4>Muhammad Yasir</h4>
-                    <p><span class="active-dot"></span> Senior Engineer • Staff ID: <b>EMP-1001</b> • Lahore HQ</p>
-                </div>
-            </div>
-            <div class="system-pill">
-                <span>🛡️ Face ID Biometric & Sheets Sync Active</span>
-            </div>
-        </div>
+    <script type="module">
+      import { EMPLOYEE_MGMT_NAV } from "./src/nav.ts";
+      import { punchAttendance } from "./src/api/client.ts";
 
-        <div class="viewport">
+      const navListEl = document.getElementById("nav-list");
+      const pageHeadingEl = document.getElementById("page-heading");
+      const viewContainerEl = document.getElementById("view-container");
+      const apiStatusEl = document.getElementById("api-status");
 
-            <!-- 1. TIME-OFF & LEAVEFLOW -->
-            <div id="tab-leave" class="module-tab active">
-                <div class="quota-grid">
-                    <div class="quota-card">
-                        <div class="quota-title">Annual Vacation</div>
-                        <div class="quota-value" id="valAnnual">12 <small>/ 20 Days</small></div>
-                        <div class="quota-bar"><div class="quota-bar-fill" style="width: 60%; background: var(--accent-blue);"></div></div>
-                    </div>
-                    <div class="quota-card medical">
-                        <div class="quota-title">Medical & Sick Leave</div>
-                        <div class="quota-value">8 <small>/ 10 Days</small></div>
-                        <div class="quota-bar"><div class="quota-bar-fill" style="width: 80%; background: #10b981;"></div></div>
-                    </div>
-                    <div class="quota-card casual">
-                        <div class="quota-title">Casual / Flex Days</div>
-                        <div class="quota-value">4 <small>/ 5 Days</small></div>
-                        <div class="quota-bar"><div class="quota-bar-fill" style="width: 80%; background: #f59e0b;"></div></div>
-                    </div>
-                    <div class="quota-card used">
-                        <div class="quota-title">Approved Taken (YTD)</div>
-                        <div class="quota-value">6 <small>Days Total</small></div>
-                        <div class="quota-bar"><div class="quota-bar-fill" style="width: 30%; background: #818cf8;"></div></div>
-                    </div>
-                </div>
+      let activeSectionId = EMPLOYEE_MGMT_NAV[0]?.id || "overview";
 
-                <div class="split-workspace">
-                    <div class="chat-panel">
-                        <div class="chat-panel-header">
-                            <h3 style="font-size: 14px; font-weight: 700;">🤖 LeaveFlow Conversational Assistant</h3>
-                            <span class="badge badge-green">AI Online</span>
-                        </div>
-                        <div class="chips-container">
-                            <button class="quick-chip" onclick="quickSend('Request 1 day annual leave')">📅 1-Day Annual Leave</button>
-                            <button class="quick-chip" onclick="quickSend('Yaar tabiyat kharab hai, 2 din ki medical chutti chahiye')">🚨 Emergency Sick Leave</button>
-                            <button class="quick-chip" onclick="quickSend('Check my remaining leave balance')">📊 Check Balances</button>
-                            <button class="quick-chip" onclick="quickSend('What is the carry-forward policy for leaves?')">📜 Carry-Forward Rules</button>
-                        </div>
-                        <div class="chat-stream" id="chatStream">
-                            <div class="bubble bot">
-                                <div class="bubble-avatar">AI</div>
-                                <div class="bubble-text">
-                                    Hello <b>Muhammad Yasir</b>! How can I assist you with your schedule or leave requests today?
-                                </div>
-                            </div>
-                        </div>
-                        <div class="chat-input-row">
-                            <input type="text" id="chatInput" placeholder="Type message in English or Roman Urdu..." onkeydown="if(event.key==='Enter') sendLeaveMessage()">
-                            <button class="chat-send-btn" onclick="sendLeaveMessage()">Send</button>
-                        </div>
-                    </div>
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
 
-                    <div style="display: flex; flex-direction: column; gap: 16px;">
-                        <div class="dash-card">
-                            <h3>👥 Team Out-of-Office (Today)</h3>
-                            <div style="font-size: 12.5px; display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
-                                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #1a304f; padding-bottom: 6px;">
-                                    <span><b>Ali Khan</b> (Tech Lead)</span><span class="badge badge-blue">Annual Leave</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #1a304f; padding-bottom: 6px;">
-                                    <span><b>Sara Ahmed</b> (QA Lead)</span><span class="badge badge-green">WFH</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="dash-card" style="flex: 1;">
-                            <h3>📊 Google Sheets Sync Pipeline</h3>
-                            <p style="font-size: 12px; color: var(--text-muted);">Real-time bi-directional audit logging to corporate Sheets DB.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+      function renderAttendanceCard() {
+        viewContainerEl.innerHTML = `
+          <h2 class="card-title">Biometric Check-In / Check-Out</h2>
+          <p class="card-desc">
+            Enter an employee identifier to test attendance punching against the backend API.
+          </p>
+          <form id="punch-form" class="form-row">
+            <input
+              id="employee-id-input"
+              class="input-field"
+              type="text"
+              placeholder="Employee ID (e.g. EMP-001)"
+              required
+            />
+            <button id="punch-submit-btn" class="btn-primary" type="submit">
+              Record Punch
+            </button>
+          </form>
+          <div id="punch-result" class="result-box" hidden></div>
+        `;
 
-            <!-- 2. POLICY BRAIN (RAG) -->
-            <div id="tab-policy" class="module-tab">
-                <div class="dash-card" style="border-left: 4px solid #38bdf8;">
-                    <h3>📥 Document Ingestion Pipeline</h3>
-                    <p>Ingest handbook chapters into the vector/chunk memory store.</p>
-                    <input type="text" id="docTitle" class="input-text" value="Employee Leave Handbook 2026">
-                    <textarea id="docContent" class="input-text" style="height:80px;">Section 4.1: Annual Leaves. All employees are entitled to 20 leaves per year.
-Section 4.2: Carry Forward. Maximum 5 unused annual leaves can be carried forward.</textarea>
-                    <button class="btn-primary" onclick="handleIngestClick()">⚡ Ingest & Chunk Document</button>
-                    <div id="ingestFeedback" style="display:none; margin-top:10px; padding:10px; border-radius:6px; font-size:13px;"></div>
-                </div>
+        const formEl = document.getElementById("punch-form");
+        const inputEl = document.getElementById("employee-id-input");
+        const submitBtn = document.getElementById("punch-submit-btn");
+        const resultEl = document.getElementById("punch-result");
 
-                <div class="dash-card">
-                    <h3>🧠 Grounded Knowledge Search</h3>
-                    <div style="display:flex; gap:10px;">
-                        <input type="text" id="queryText" class="input-text" placeholder="Ask policy rules (e.g. carry forward)..." value="carry forward" style="margin-bottom:0;">
-                        <button class="btn-primary" onclick="handleSearchClick()">Search</button>
-                    </div>
-                    <div id="searchFeedback" style="display:none; background:#040914; border:1px solid #38bdf8; border-radius:8px; padding:14px; margin-top:14px; font-size:13px;"></div>
-                </div>
-            </div>
+        formEl?.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const employeeId = inputEl.value.trim();
 
-            <!-- 3. DAILY ATTENDANCE (FACE ID BIOMETRIC) -->
-            <div id="tab-attendance" class="module-tab">
-                <div class="grid-2">
-                    <div class="dash-card">
-                        <h3>🛡️ Webcam Face ID Biometric Scanner</h3>
-                        <p>Position your face within the frame for facial recognition check-in.</p>
-                        
-                        <div class="face-studio">
-                            <div class="webcam-viewport">
-                                <video id="faceCamera" autoplay playsinline muted></video>
-                                <div class="face-overlay-box"></div>
-                                <div class="scanner-hud" id="scannerHud">CAMERA STANDBY</div>
-                            </div>
-                            <div style="display: flex; gap: 10px; width: 100%;">
-                                <button class="btn-secondary" onclick="startCamera()" style="flex:1;">1. Turn On Camera</button>
-                                <button class="btn-primary" onclick="verifyFaceID()" style="flex:1;">2. Scan & Check-In</button>
-                            </div>
-                        </div>
-                        <span id="faceNotice" style="display:block; font-size:12px; color:var(--text-muted); margin-top:10px; text-align:center;">Status: Awaiting Facial Scan</span>
-                    </div>
+          if (!employeeId) {
+            resultEl.hidden = false;
+            resultEl.textContent = "Please enter a valid Employee ID.";
+            return;
+          }
 
-                    <div class="dash-card">
-                        <h3>📅 Live Session & Attendance Metrics</h3>
-                        <div style="font-size:13.5px; line-height:2.2; margin-top: 10px;">
-                            Employee: <b>Muhammad Yasir (EMP-1001)</b><br>
-                            Verification Mode: <b style="color:var(--accent-blue);">Facial Recognition (Face ID)</b><br>
-                            Check-In Time: <b id="statCheckIn">--:--:--</b><br>
-                            Check-Out Time: <b id="statCheckOut">--:--:--</b><br>
-                            Shift Status: <span class="badge badge-amber" id="statBadge">Not Verified</span>
-                        </div>
-                    </div>
-                </div>
+          submitBtn.disabled = true;
+          apiStatusEl.textContent = "Submitting...";
+          resultEl.hidden = false;
+          resultEl.textContent = "Sending attendance request...";
 
-                <div class="dash-card">
-                    <h3>📊 Attendance Audit Log (Secure DB)</h3>
-                    <table class="dash-table">
-                        <thead>
-                            <tr><th>Date</th><th>Employee ID & Name</th><th>Status</th><th>Biometric Verification Source</th></tr>
-                        </thead>
-                        <tbody id="attendanceTableBody">
-                            <tr><td>Today</td><td>Muhammad Yasir (EMP-1001)</td><td><span class="badge badge-green">PRESENT</span></td><td>Face ID Verified (Webcam Mesh)</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+          try {
+            const data = await punchAttendance({
+              employee_id: employeeId,
+              verification_source: "Face ID",
+              face_detected: true,
+            });
+            apiStatusEl.textContent = "Connected";
+            resultEl.textContent = JSON.stringify(data, null, 2);
+          } catch (error) {
+            apiStatusEl.textContent = "API Error";
+            resultEl.textContent =
+              error instanceof Error ? error.message : "Unexpected error occurred.";
+          } finally {
+            submitBtn.disabled = false;
+          }
+        });
+      }
 
-            <!-- 4. IT SUPPORT HUB -->
-            <div id="tab-helpdesk" class="module-tab">
-                <div class="grid-2">
-                    <div class="dash-card">
-                        <h3>💻 Raise IT Ticket</h3>
-                        <input type="text" id="ticketDesc" class="input-text" placeholder="Describe hardware/software issue...">
-                        <button class="btn-primary" onclick="submitNewTicket()">Dispatch IT Ticket</button>
-                    </div>
-                    <div class="dash-card">
-                        <h3>🖥️ Enrolled Corporate Assets</h3>
-                        <p style="font-size:12.5px; line-height:1.8;">• Dell Latitude 5440 i7 16GB (#DL-883921)<br>• RFID Smartcard ID (#SC-1001-A)</p>
-                    </div>
-                </div>
-                <div class="dash-card">
-                    <h3>🎫 Incident Tracker</h3>
-                    <table class="dash-table" id="ticketsTable">
-                        <thead><tr><th>Ticket ID</th><th>Subject</th><th>Status</th></tr></thead>
-                        <tbody><tr><td>#IT-1024</td><td>VPN Gateway Handshake Error</td><td><span class="badge badge-amber">In Progress</span></td></tr></tbody>
-                    </table>
-                </div>
-            </div>
+      function renderActiveView(item) {
+        pageHeadingEl.textContent = item.label;
 
-            <!-- 5. WHISTLEBLOWER BOX -->
-            <div id="tab-anonymous" class="module-tab">
-                <div class="dash-card" style="border-left: 4px solid #38bdf8; background: #091322;">
-                    <h3 style="color: #38bdf8;">🔒 100% Zero-Log Whistleblower Protection</h3>
-                    <p style="color: #e2e8f0; margin:0; font-size:13px;">Your Employee ID, Email, and IP Address are completely stripped before saving.</p>
-                </div>
-                <div class="grid-2">
-                    <div class="dash-card">
-                        <h3>✉️ Submit Confidential Report</h3>
-                        <textarea id="anonMessage" class="input-text" style="height:90px;" placeholder="Detail feedback safely..."></textarea>
-                        <button class="btn-primary" onclick="submitAnonymousReport()">🔒 Submit Anonymously</button>
-                        <div id="anonReceipt" style="display:none; background:#064e3b; border:1px solid #10b981; border-radius:8px; padding:10px; margin-top:10px; font-size:12px;"></div>
-                    </div>
-                    <div class="dash-card">
-                        <h3>🔑 Track Case</h3>
-                        <input type="text" id="trackInput" class="input-text" placeholder="#ANON-XXXX-XK">
-                        <button class="btn-secondary" onclick="checkAnonymousTracking()">Lookup Token</button>
-                        <div id="trackResultBox" style="display:none; background:#060e1b; border:1px solid #334155; padding:10px; border-radius:8px; margin-top:10px; font-size:12.5px;"></div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- Scripts -->
-    <script>
-        const CURRENT_USER = { id: "EMP-1001", name: "Muhammad Yasir", email: "yasir@companyk.com" };
-        const MANAGER_PIN = "Yasir098@@";
-
-        let LOCAL_CHUNKS = [
-            { chunk_id: "CHK-101", doc_title: "Handbook", section_path: "Handbook > Section 1", text: "Section 4.1: Annual Leaves. All employees get 20 annual leaves per year. 1-day leave is auto-approved." },
-            { chunk_id: "CHK-102", doc_title: "Handbook", section_path: "Handbook > Section 2", text: "Section 4.2: Carry Forward. Maximum 5 unused annual leaves can be carried forward." }
-        ];
-
-        function switchTab(tabId) {
-            document.querySelectorAll('.module-tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            const target = document.getElementById('tab-' + tabId);
-            if(target) target.classList.add('active');
-            const order = ['leave', 'policy', 'attendance', 'helpdesk', 'anonymous'];
-            const idx = order.indexOf(tabId);
-            if(idx >= 0) document.querySelectorAll('.nav-btn')[idx].classList.add('active');
-
-            // If switching away from attendance, stop webcam stream to save resources
-            if (tabId !== 'attendance') {
-                stopCamera();
-            }
+        if (item.id === "attendance") {
+          renderAttendanceCard();
+          return;
         }
 
-        // --- FACE ID WEBCAM LOGIC ---
-        let mediaStream = null;
+        viewContainerEl.innerHTML = `
+          <h2 class="card-title">${escapeHtml(item.label)}</h2>
+          <p class="card-desc">
+            Route: <code>${escapeHtml(item.path)}</code>. Select a module section from the sidebar or continue building out this view.
+          </p>
+        `;
+      }
 
-        async function startCamera() {
-            const video = document.getElementById('faceCamera');
-            const hud = document.getElementById('scannerHud');
-            const notice = document.getElementById('faceNotice');
+      function renderNavigation() {
+        navListEl.innerHTML = "";
 
-            try {
-                hud.innerText = "INITIALIZING WEBCAM...";
-                mediaStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
-                video.srcObject = mediaStream;
-                hud.innerText = "ALIGN FACE IN FRAME";
-                notice.innerText = "Status: Camera active. Ready for Face ID scan.";
-            } catch (err) {
-                hud.innerText = "CAMERA ACCESS DENIED";
-                notice.innerText = "Error: Unable to access webcam. Please check browser permissions.";
-                alert("Camera permission is required for Face ID simulation.");
-            }
+        for (const item of EMPLOYEE_MGMT_NAV) {
+          const li = document.createElement("li");
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = `nav-btn ${item.id === activeSectionId ? "active" : ""}`;
+          btn.textContent = item.label;
+          btn.addEventListener("click", () => {
+            activeSectionId = item.id;
+            renderNavigation();
+            renderActiveView(item);
+          });
+          li.appendChild(btn);
+          navListEl.appendChild(li);
         }
+      }
 
-        function stopCamera() {
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-                mediaStream = null;
-                const video = document.getElementById('faceCamera');
-                if (video) video.srcObject = null;
-                const hud = document.getElementById('scannerHud');
-                if (hud) hud.innerText = "CAMERA STANDBY";
-            }
-        }
+      const initialItem =
+        EMPLOYEE_MGMT_NAV.find((nav) => nav.id === activeSectionId) || EMPLOYEE_MGMT_NAV[0];
 
-        function verifyFaceID() {
-            const hud = document.getElementById('scannerHud');
-            const notice = document.getElementById('faceNotice');
-            const nowStr = new Date().toLocaleTimeString();
-
-            if (!mediaStream) {
-                alert("Please turn on the camera first!");
-                return;
-            }
-
-            hud.innerText = "SCANNING FACIAL MESH...";
-            notice.innerText = "Status: Analyzing facial vectors...";
-
-            setTimeout(() => {
-                hud.innerText = "MATCH CONFIRMED (99.8%)";
-                notice.innerText = `Verified successfully at ${nowStr} for ${CURRENT_USER.name} (${CURRENT_USER.id})`;
-                
-                document.getElementById('statCheckIn').innerText = nowStr;
-                document.getElementById('statBadge').innerText = "Face ID Verified";
-                document.getElementById('statBadge').className = "badge badge-green";
-
-                // Add to audit table
-                const table = document.getElementById('attendanceTableBody');
-                const row = table.insertRow(0);
-                row.innerHTML = `<td>Today</td><td>${CURRENT_USER.name} (${CURRENT_USER.id})</td><td><span class="badge badge-green">PRESENT</span></td><td>Face ID Verified (Webcam Mesh)</td>`;
-                
-                alert(`Face ID Verified! Attendance successfully marked for ${CURRENT_USER.name}.`);
-            }, 1500);
-        }
-
-        // --- LEAVEFLOW CHAT ---
-        function quickSend(txt) {
-            document.getElementById('chatInput').value = txt;
-            sendLeaveMessage();
-        }
-
-        function sendLeaveMessage() {
-            const input = document.getElementById('chatInput');
-            const rawText = input.value.trim();
-            if(!rawText) return;
-
-            const stream = document.getElementById('chatStream');
-            stream.innerHTML += `<div class="bubble user"><div class="bubble-avatar">U</div><div class="bubble-text">${rawText}</div></div>`;
-            input.value = '';
-            stream.scrollTop = stream.scrollHeight;
-
-            const lower = rawText.toLowerCase();
-
-            setTimeout(() => {
-                if (/hi|hello|hye|salam|kese ho/i.test(lower)) {
-                    postBot(`Hello <b>${CURRENT_USER.name}</b>! Main LeaveFlow aur Policy Brain ka AI assistant hoon. Bataiye, kya madad chahiye?`);
-                } else if (/balance|quota/i.test(lower)) {
-                    postBot(`📊 <b>Quota Balance:</b><br>• Annual: 12 Days<br>• Medical: 8 Days<br>• Casual: 4 Days`);
-                } else if (/carry forward|policy/i.test(lower)) {
-                    postBot(`🧠 <b>Policy Brain:</b> Maximum 5 unused annual leaves can be carried forward.<br><small style="color:#38bdf8;">📌 Citation: Handbook > Section 2 (CHK-102)</small>`);
-                } else {
-                    postBot(`✅ <b>Leave Approved!</b><br>• 1-day leave recorded for ${CURRENT_USER.name}.<br><small style="color:#10b981;">• Synced to Google Sheet: Leave_Audit_Log</small>`);
-                    document.getElementById('valAnnual').innerHTML = `11 <small>/ 20 Days</small>`;
-                }
-            }, 400);
-        }
-
-        function postBot(html) {
-            const stream = document.getElementById('chatStream');
-            stream.innerHTML += `<div class="bubble bot"><div class="bubble-avatar">AI</div><div class="bubble-text">${html}</div></div>`;
-            stream.scrollTop = stream.scrollHeight;
-        }
-
-        function handleIngestClick() {
-            const box = document.getElementById("ingestFeedback");
-            box.style.display = "block";
-            box.style.background = "#064e3b";
-            box.style.color = "#a7f3d0";
-            box.innerHTML = `✅ Document chunked & stored successfully!`;
-        }
-
-        function handleSearchClick() {
-            const box = document.getElementById("searchFeedback");
-            box.style.display = "block";
-            box.innerHTML = `<b style="color:#38bdf8;">Grounded Result:</b> Maximum 5 unused annual leaves can be carried forward.<br><small style="color:#94a3b8;">📌 Citation: Handbook > Section 2 (CHK-102)</small>`;
-        }
-
-        function submitNewTicket() {
-            const desc = document.getElementById('ticketDesc').value.trim();
-            if(!desc) return;
-            alert("IT Ticket registered successfully!");
-            document.getElementById('ticketDesc').value = "";
-        }
-
-        function submitAnonymousReport() {
-            const rec = document.getElementById('anonReceipt');
-            rec.style.display = "block";
-            rec.innerHTML = `✅ Dispatched! Tracking Token: <b>#ANON-9042-XK</b>`;
-        }
-
-        function checkAnonymousTracking() {
-            const res = document.getElementById('trackResultBox');
-            res.style.display = "block";
-            res.innerHTML = `<b>Case:</b> #ANON-9042-XK | <b>Status:</b> <span class="badge badge-amber">Under Review</span>`;
-        }
+      if (initialItem) {
+        renderNavigation();
+        renderActiveView(initialItem);
+      }
     </script>
-</body>
+  </body>
 </html>
